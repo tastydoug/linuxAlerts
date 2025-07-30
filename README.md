@@ -96,69 +96,315 @@ DB_TRUST_CERT=true
 ## API Endpoints
 
 ### Send Alert
+**POST** `/alert` - Main endpoint for sending notifications
+
 ```http
 POST http://localhost:3008/alert
 Content-Type: application/json
 
 {
-  "message": "Device sync completed successfully",
-  "url": "https://dashboard.example.com",
+  "message": "Your alert message",
+  "url": "optional-url", 
   "critical": false
 }
 ```
 
 **Parameters:**
-- `message` (required): Alert message text
-- `url` (optional): URL to include in the alert
-- `critical` (optional): If true, sends alert twice with 3-second delay
+- `message` (required): Alert message text (string, non-empty)
+- `url` (optional): URL to include in the alert notification
+- `critical` (optional): Boolean - if true, sends alert twice with 3-second delay for reliability
+
+**Example Requests:**
+
+1. **Basic Alert:**
+```json
+{
+  "message": "Database connection restored successfully"
+}
+```
+
+2. **Alert with URL:**
+```json
+{
+  "message": "High CPU usage detected on production server", 
+  "url": "https://dashboard.example.com/cpu-metrics"
+}
+```
+
+3. **Critical Alert:**
+```json
+{
+  "message": "CRITICAL: Payment system failure - transactions failing",
+  "url": "https://monitoring.tastytrucks.com.au/payments",
+  "critical": true
+}
+```
+
+4. **Device Sync Alert:**
+```json
+{
+  "message": "Device sync completed: 91 devices processed, 3 with low battery",
+  "url": "https://dashboard.tastytrucks.com.au/devices"
+}
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Alert sent successfully",
+  "reason": null,
+  "timestamp": "2025-07-30T14:30:00.000Z",
+  "critical": false,
+  "workingHours": true,
+  "rateLimit": {
+    "current": 3,
+    "max": 5,
+    "remaining": 2
+  }
+}
+```
+
+**Error Response (Rate Limited):**
+```json
+{
+  "success": false,
+  "message": "Alert rate limit exceeded - throttling alerts",
+  "reason": "rate_limited",
+  "timestamp": "2025-07-30T14:30:00.000Z",
+  "critical": false,
+  "workingHours": true,
+  "rateLimit": {
+    "current": 5,
+    "max": 5,
+    "remaining": 0
+  }
+}
+```
 
 ### Health Check
+**GET** `/health` - Service health and status monitoring
+
 ```http
 GET http://localhost:3008/health
 ```
 
-Returns service status, uptime, memory usage, and statistics.
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "alerts-server",
+  "uptime": 1234,
+  "uptimeFormatted": "0h 20m",
+  "alertsEnabled": true,
+  "workingHours": true,
+  "currentHour": 14,
+  "workingHoursRange": "7:00 - 18:00",
+  "rateLimit": {
+    "current": 2,
+    "max": 5,
+    "windowSeconds": 30,
+    "nextReset": "2025-07-30T14:30:00.000Z"
+  },
+  "memory": {
+    "rss": "45MB",
+    "heapUsed": "23MB"
+  },
+  "stats": {
+    "startTime": "2025-07-30T14:10:00.000Z",
+    "totalAlerts": 15,
+    "successfulAlerts": 12,
+    "failedAlerts": 1,
+    "criticalAlerts": 2,
+    "alertsDisabled": 0,
+    "throttledAlerts": 2
+  }
+}
+```
 
-### Configuration
+### Configuration Management
+**GET** `/config` - View current server configuration
+
 ```http
-# View current configuration
 GET http://localhost:3008/config
+```
 
-# Enable alerts
+**Response:**
+```json
+{
+  "enabled": true,
+  "workingHoursStart": 7,
+  "workingHoursEnd": 18,
+  "topic": "IT",
+  "retryDelay": 3000,
+  "rateLimit": {
+    "max": 5,
+    "windowSeconds": 30,
+    "current": 2
+  }
+}
+```
+
+**POST** `/config/enable` - Enable alert system
+
+```http
 POST http://localhost:3008/config/enable
+```
 
-# Disable alerts
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Alerts enabled",
+  "enabled": true
+}
+```
+
+**POST** `/config/disable` - Disable alert system
+
+```http
 POST http://localhost:3008/config/disable
 ```
 
-### Statistics
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Alerts disabled",
+  "enabled": false
+}
+```
+
+### Statistics and Monitoring
+**GET** `/stats` - Detailed performance statistics
+
 ```http
 GET http://localhost:3008/stats
 ```
 
-Returns detailed statistics including success rates and alert counts.
+**Response:**
+```json
+{
+  "startTime": "2025-07-30T14:00:00.000Z",
+  "totalAlerts": 25,
+  "successfulAlerts": 22,
+  "failedAlerts": 1,
+  "criticalAlerts": 3,
+  "alertsDisabled": 0,
+  "throttledAlerts": 2,
+  "uptime": 1800,
+  "successRate": "88.0%",
+  "alertsPerHour": "50.0"
+}
+```
 
-### Test Alert
+**GET** `/logs` - Recent alert logs from database
+
+```http
+GET http://localhost:3008/logs?limit=20
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 20,
+  "logs": [
+    {
+      "id": 123,
+      "timestamp": "2025-07-30T14:25:00.000Z",
+      "message": "Device sync completed successfully",
+      "url": "https://dashboard.example.com",
+      "critical": false,
+      "success": true,
+      "reason": null,
+      "sourceIP": "192.168.1.100"
+    }
+  ]
+}
+```
+
+### Testing and Development
+**POST** `/test` - Send test alert for development
+
 ```http
 POST http://localhost:3008/test
 ```
 
-Sends a test alert for development purposes.
+**Response:**
+```json
+{
+  "test": true,
+  "success": true,
+  "message": "Alert sent successfully",
+  "timestamp": "2025-07-30T14:30:00.000Z"
+}
+```
 
-## Configuration
+**POST** `/reset-rate-limit` - Reset rate limiting window
 
-Edit the `ALERT_CONFIG` object in `alert-server.js`:
+```http
+POST http://localhost:3008/reset-rate-limit
+```
 
-```javascript
-const ALERT_CONFIG = {
-    enabled: false,              // Set to true to enable alerts
-    workingHoursStart: 7,        // Start hour (24-hour format)
-    workingHoursEnd: 18,         // End hour (24-hour format)
-    apiUrl: 'https://mobile.tastytrucks.com.au:60052/SendAlert',
-    authHeader: 'Basic dXNlcjE6cGFzczE=',
-    retryDelay: 3000,            // Delay for critical alert retry (ms)
-    topic: 'IT'                  // Alert topic
-};
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Rate limit window reset",
+  "rateLimit": {
+    "current": 0,
+    "max": 5
+  }
+}
+```
+
+## Environment-Based Configuration
+
+**⚠️ IMPORTANT**: This application now uses environment variables for all configuration. No hardcoded credentials exist in the source code.
+
+Create a `.env` file from the template:
+
+```bash
+cp .env.example .env
+# Edit .env with your actual credentials
+```
+
+**Required Environment Variables:**
+- `TASTY_API_AUTH`: Authentication header for Tasty API
+- `DB_PASSWORD`: Database password for SQL Server connection
+
+**Optional Environment Variables:**
+- `PORT`: Server port (default: 3008)
+- `ALERTS_ENABLED`: Enable/disable alerts (default: true)
+- `WORKING_HOURS_START`: Start hour for working hours (default: 7)
+- `WORKING_HOURS_END`: End hour for working hours (default: 18)
+- `RATE_LIMIT_MAX`: Maximum alerts per window (default: 5)
+- `RATE_LIMIT_WINDOW`: Rate limit window in milliseconds (default: 30000)
+
+**Example .env file:**
+```bash
+# Server Configuration
+PORT=3008
+NODE_ENV=production
+
+# Alert System Configuration  
+ALERTS_ENABLED=true
+WORKING_HOURS_START=7
+WORKING_HOURS_END=18
+ALERT_TOPIC=IT
+
+# Tasty Trucks API Configuration
+TASTY_API_URL=https://mobile.tastytrucks.com.au:60052/SendAlert
+TASTY_API_AUTH=Basic dXNlcjE6cGFzczE=
+
+# Database Configuration
+DB_SERVER=localhost
+DB_NAME=tasty
+DB_USER=SA
+DB_PASSWORD=your_actual_password
+DB_ENCRYPT=false
+DB_TRUST_CERT=true
 ```
 
 ## Integration Examples
@@ -179,22 +425,132 @@ await axios.post('http://localhost:3008/alert', {
 
 ### From Other Services
 ```javascript
-const sendAlert = async (message, critical = false) => {
+const sendAlert = async (message, critical = false, url = null) => {
     try {
         const response = await axios.post('http://localhost:3008/alert', {
             message,
-            critical
+            critical,
+            url
         });
         console.log('Alert sent:', response.data);
+        return response.data;
     } catch (error) {
         console.error('Failed to send alert:', error.message);
+        return { success: false, error: error.message };
     }
 };
 
-// Usage
+// Usage examples
 await sendAlert('Service started successfully');
 await sendAlert('Database connection lost!', true);
+await sendAlert('CPU usage high', false, 'https://dashboard.example.com/cpu');
 ```
+
+## Postman Collection Examples
+
+### Complete Postman API Collection
+
+**1. Health Check**
+```http
+GET http://localhost:3008/health
+```
+
+**2. Send Basic Alert** 
+```http
+POST http://localhost:3008/alert
+Content-Type: application/json
+
+{
+  "message": "Database connection restored successfully"
+}
+```
+
+**3. Send Alert with URL**
+```http
+POST http://localhost:3008/alert
+Content-Type: application/json
+
+{
+  "message": "High CPU usage detected on production server",
+  "url": "https://dashboard.example.com/cpu-metrics"
+}
+```
+
+**4. Send Critical Alert**
+```http
+POST http://localhost:3008/alert
+Content-Type: application/json
+
+{
+  "message": "CRITICAL: Database server is down - immediate attention required",
+  "critical": true
+}
+```
+
+**5. Send Critical Alert with URL**
+```http
+POST http://localhost:3008/alert
+Content-Type: application/json
+
+{
+  "message": "CRITICAL: Payment system failure - transactions failing",
+  "url": "https://monitoring.tastytrucks.com.au/payments", 
+  "critical": true
+}
+```
+
+**6. Device Sync Alert Example**
+```http
+POST http://localhost:3008/alert
+Content-Type: application/json
+
+{
+  "message": "Device sync completed: 91 devices processed, 3 with low battery",
+  "url": "https://dashboard.tastytrucks.com.au/devices"
+}
+```
+
+**7. Test Alert**
+```http
+POST http://localhost:3008/test
+```
+
+**8. Get Configuration**
+```http
+GET http://localhost:3008/config
+```
+
+**9. Enable Alerts**
+```http
+POST http://localhost:3008/config/enable
+```
+
+**10. Disable Alerts**
+```http
+POST http://localhost:3008/config/disable
+```
+
+**11. Get Statistics**
+```http
+GET http://localhost:3008/stats
+```
+
+**12. Get Recent Logs**
+```http
+GET http://localhost:3008/logs?limit=20
+```
+
+**13. Reset Rate Limit**
+```http
+POST http://localhost:3008/reset-rate-limit
+```
+
+### Expected Response Codes
+
+- **200**: Success - Alert sent or data retrieved
+- **400**: Bad Request - Missing or invalid parameters
+- **500**: Server Error - Internal server or database error
+- **503**: Service Unavailable - Database not available (for /logs endpoint)
 
 ## Production Deployment
 
