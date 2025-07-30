@@ -1,0 +1,37 @@
+{
+  "name": "alerts-server",
+  "version": "1.0.0",
+  "description": "Centralized alert notification server for Tasty Fresh services",
+  "main": "alert-server.js",
+  "scripts": {
+    "start": "node alert-server.js",
+    "dev": "NODE_ENV=development nodemon alert-server.js",
+    "test": "node test-alert.js",
+    "install-service": "sudo systemctl enable alerts-server.service",
+    "uninstall-service": "sudo systemctl disable alerts-server.service",
+    "restart-service": "sudo systemctl restart alerts-server.service",
+    "status": "sudo systemctl status alerts-server.service",
+    "logs": "sudo journalctl -u alerts-server.service -f"
+  },
+  "keywords": [
+    "alerts",
+    "notifications",
+    "tasty-fresh",
+    "centralized-service"
+  ],
+  "author": "Tasty Fresh",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "mssql": "^11.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

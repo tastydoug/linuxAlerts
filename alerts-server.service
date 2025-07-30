@@ -1,0 +1,43 @@
+[Unit]
+Description=Centralized Alert Server
+Documentation=https://github.com/tasty-fresh/alerts-server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator/alerts-workspace
+ExecStart=/usr/bin/node alert-server.js
+Restart=always
+RestartSec=10
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Environment
+Environment=NODE_ENV=production
+EnvironmentFile=/home/administrator/alerts-workspace/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alerts-server
+
+# Security
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/home/administrator/alerts-workspace
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
