@@ -1,9 +1,11 @@
 # Alerts Server
 
-Centralized notification server with rate limiting, database logging, environment-based configuration, and automatic restart capabilities.
+Centralized notification server with dynamic alert types, rate limiting, database logging, environment-based configuration, and automatic restart capabilities.
 
 ## Features
 
+- **Dynamic Alert Types**: Fully customizable alert categories - use any alert type you want
+- **Smart Auto-Detection**: Intelligent alert categorization based on message content
 - **Centralized Alert Management**: Single endpoint for all system alerts
 - **Rate Limiting**: Prevents alert spam (configurable, default: 5 alerts/30s)
 - **Database Logging**: SQL Server integration for alert history
@@ -93,10 +95,65 @@ DB_TRUST_CERT=true
 
 **⚠️ Important**: Never commit the `.env` file to git. It contains sensitive credentials.
 
+## Dynamic Alert Types
+
+The alerts server now supports completely dynamic alert types, giving you full flexibility in categorizing your notifications.
+
+### How It Works
+
+1. **Custom Types**: Specify any string as `alertType` - it will be formatted as "TypeName Alert"
+2. **Auto-Detection**: Leave `alertType` empty for intelligent categorization based on message content
+3. **Critical Override**: Critical alerts always show as "Critical Alert" regardless of custom type
+
+### Auto-Detection Keywords
+
+The system automatically detects these alert types based on message content:
+
+| Alert Type | Keywords | Example Message |
+|------------|----------|-----------------|
+| Device Alert | device, battery, round | "Device battery level critically low" |
+| Sync Alert | sync, synchroniz | "Data synchronization completed" |
+| Health Check | health, check, monitor | "Health monitoring detected issue" |
+| Security Alert | security, breach, unauthorized | "Unauthorized access attempt" |
+| Warning | warning, warn | "Warning: High memory usage" |
+| Information | info, information, completed, successful | "Backup completed successfully" |
+| Error Alert | error, fail, problem | "Database connection failed" |
+| Backup Alert | backup, restore | "Backup operation started" |
+| Network Alert | network, connection | "Network connectivity restored" |
+| Database Alert | database, sql | "Database query timeout" |
+
+### Custom Type Examples
+
+You can use any custom alert type for your specific needs:
+
+```json
+{
+  "message": "Deployment to production completed",
+  "alertType": "deployment"
+}
+```
+*Result: "Deployment Alert"*
+
+```json
+{
+  "message": "User registration spike detected",
+  "alertType": "user-activity"
+}
+```
+*Result: "User-activity Alert"*
+
+```json
+{
+  "message": "API rate limit threshold reached",
+  "alertType": "performance"
+}
+```
+*Result: "Performance Alert"*
+
 ## API Endpoints
 
 ### Send Alert
-**POST** `/alert` - Main endpoint for sending notifications
+**POST** `/alert` - Main endpoint for sending notifications with dynamic alert types
 
 ```http
 POST http://localhost:3008/alert
@@ -105,7 +162,8 @@ Content-Type: application/json
 {
   "message": "Your alert message",
   "url": "optional-url", 
-  "critical": false
+  "critical": false,
+  "alertType": "custom-type"
 }
 ```
 
@@ -113,40 +171,70 @@ Content-Type: application/json
 - `message` (required): Alert message text (string, non-empty)
 - `url` (optional): URL to include in the alert notification
 - `critical` (optional): Boolean - if true, sends alert twice with 3-second delay for reliability
+- `alertType` (optional): Custom alert type (any string) - auto-detection used if not provided
+
+**Alert Type Behavior:**
+- **Custom Types**: Any string you provide (e.g., "maintenance" → "Maintenance Alert")
+- **Auto-Detection**: Smart categorization based on message keywords
+- **Critical Override**: Critical alerts always show as "Critical Alert" regardless of type
 
 **Example Requests:**
 
-1. **Basic Alert:**
+1. **Basic Alert (Auto-Detection):**
 ```json
 {
   "message": "Database connection restored successfully"
 }
 ```
+*Result: Auto-detected as "Database Alert"*
 
-2. **Alert with URL:**
+2. **Custom Alert Type:**
+```json
+{
+  "message": "Server maintenance scheduled for tonight",
+  "alertType": "maintenance"
+}
+```
+*Result: Shows as "Maintenance Alert"*
+
+3. **Performance Alert:**
 ```json
 {
   "message": "High CPU usage detected on production server", 
-  "url": "https://dashboard.example.com/cpu-metrics"
+  "url": "https://dashboard.example.com/cpu-metrics",
+  "alertType": "performance"
 }
 ```
+*Result: Shows as "Performance Alert"*
 
-3. **Critical Alert:**
+4. **Critical Alert (Type Override):**
 ```json
 {
   "message": "CRITICAL: Payment system failure - transactions failing",
   "url": "https://monitoring.tastytrucks.com.au/payments",
-  "critical": true
+  "critical": true,
+  "alertType": "payment"
 }
 ```
+*Result: Shows as "Critical Alert" (critical overrides custom type)*
 
-4. **Device Sync Alert:**
+5. **Device Sync Alert (Auto-Detection):**
 ```json
 {
   "message": "Device sync completed: 91 devices processed, 3 with low battery",
   "url": "https://dashboard.tastytrucks.com.au/devices"
 }
 ```
+*Result: Auto-detected as "Sync Alert"*
+
+6. **Custom Integration Alert:**
+```json
+{
+  "message": "Shopify integration sync completed successfully",
+  "alertType": "integration"
+}
+```
+*Result: Shows as "Integration Alert"*
 
 **Success Response:**
 ```json
@@ -222,6 +310,50 @@ GET http://localhost:3008/health
 }
 ```
 
+### Alert Types Information
+**GET** `/alert-types` - Get dynamic alert type information and examples
+
+```http
+GET http://localhost:3008/alert-types
+```
+
+**Response:**
+```json
+{
+  "dynamic": true,
+  "description": "Alert types are now completely dynamic. You can specify any custom alert type or let the system auto-detect based on message content.",
+  "defaultAlertBody": "System Alert",
+  "autoDetectedTypes": [
+    "Device Alert (keywords: device, battery, round)",
+    "Sync Alert (keywords: sync, synchroniz)",
+    "Health Check (keywords: health, check, monitor)",
+    "Security Alert (keywords: security, breach, unauthorized)",
+    "Warning (keywords: warning, warn)",
+    "Information (keywords: info, information, completed, successful)",
+    "Error Alert (keywords: error, fail, problem)",
+    "Backup Alert (keywords: backup, restore)",
+    "Network Alert (keywords: network, connection)",
+    "Database Alert (keywords: database, sql)",
+    "Critical Alert (when critical: true)"
+  ],
+  "customTypeExamples": [
+    "maintenance",
+    "deployment", 
+    "performance",
+    "integration",
+    "user-notification",
+    "api-alert",
+    "scheduled-task",
+    "custom-category"
+  ],
+  "usage": {
+    "autoDetection": "Send without alertType to auto-detect based on message content",
+    "customType": "Send with alertType parameter to specify any custom alert body type",
+    "formatting": "Custom types are automatically formatted as 'TypeName Alert' (e.g., 'maintenance' becomes 'Maintenance Alert')"
+  }
+}
+```
+
 ### Configuration Management
 **GET** `/config` - View current server configuration
 
@@ -241,6 +373,12 @@ GET http://localhost:3008/config
     "max": 5,
     "windowSeconds": 30,
     "current": 2
+  },
+  "defaultAlertBody": "System Alert",
+  "alertTypeInfo": {
+    "dynamic": true,
+    "description": "Any custom alert type can be specified. If not provided, auto-detection based on message content will be used.",
+    "examples": ["custom", "maintenance", "deployment", "performance", "integration"]
   }
 }
 ```
@@ -455,7 +593,12 @@ await sendAlert('CPU usage high', false, 'https://dashboard.example.com/cpu');
 GET http://localhost:3008/health
 ```
 
-**2. Send Basic Alert** 
+**2. Get Alert Types Information**
+```http
+GET http://localhost:3008/alert-types
+```
+
+**3. Send Basic Alert (Auto-Detection)** 
 ```http
 POST http://localhost:3008/alert
 Content-Type: application/json
@@ -464,19 +607,34 @@ Content-Type: application/json
   "message": "Database connection restored successfully"
 }
 ```
+*Auto-detected as "Database Alert"*
 
-**3. Send Alert with URL**
+**4. Send Custom Alert Type**
+```http
+POST http://localhost:3008/alert
+Content-Type: application/json
+
+{
+  "message": "Server maintenance scheduled for tonight",
+  "alertType": "maintenance"
+}
+```
+*Shows as "Maintenance Alert"*
+
+**5. Send Alert with URL and Custom Type**
 ```http
 POST http://localhost:3008/alert
 Content-Type: application/json
 
 {
   "message": "High CPU usage detected on production server",
-  "url": "https://dashboard.example.com/cpu-metrics"
+  "url": "https://dashboard.example.com/cpu-metrics",
+  "alertType": "performance"
 }
 ```
+*Shows as "Performance Alert"*
 
-**4. Send Critical Alert**
+**6. Send Critical Alert (Type Override)**
 ```http
 POST http://localhost:3008/alert
 Content-Type: application/json

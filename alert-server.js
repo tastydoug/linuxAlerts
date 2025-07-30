@@ -42,17 +42,8 @@ const ALERT_CONFIG = {
     rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW) || 30000, // 30 seconds
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX) || 5, // Maximum 5 alerts per window
     throttleMessage: process.env.THROTTLE_MESSAGE || 'Alert rate limit exceeded - throttling alerts',
-    // Alert body types
-    alertBodies: {
-        system: 'System Alert',
-        device: 'Device Alert',
-        sync: 'Sync Alert',
-        health: 'Health Check',
-        critical: 'Critical Alert',
-        warning: 'Warning',
-        info: 'Information',
-        security: 'Security Alert'
-    }
+    // Default alert body when no type is specified
+    defaultAlertBody: process.env.DEFAULT_ALERT_BODY || 'System Alert'
 };
 
 // Statistics tracking
@@ -175,8 +166,67 @@ function isWorkingHours() {
     return hour >= ALERT_CONFIG.workingHoursStart && hour <= ALERT_CONFIG.workingHoursEnd;
 }
 
+// Function to determine alert body type based on message content or return a smart default
+function getAlertBody(message, isCritical, customType = null) {
+    // If a custom type is provided, use it directly (capitalized)
+    if (customType) {
+        return customType.charAt(0).toUpperCase() + customType.slice(1).toLowerCase() + ' Alert';
+    }
+    
+    const lowerMessage = message.toLowerCase();
+    
+    // Critical alerts always use critical body
+    if (isCritical) {
+        return 'Critical Alert';
+    }
+    
+    // Check for specific keywords to auto-categorize the alert with smart naming
+    if (lowerMessage.includes('device') || lowerMessage.includes('battery') || lowerMessage.includes('round')) {
+        return 'Device Alert';
+    }
+    
+    if (lowerMessage.includes('sync') || lowerMessage.includes('synchroniz')) {
+        return 'Sync Alert';
+    }
+    
+    if (lowerMessage.includes('health') || lowerMessage.includes('check') || lowerMessage.includes('monitor')) {
+        return 'Health Check';
+    }
+    
+    if (lowerMessage.includes('security') || lowerMessage.includes('breach') || lowerMessage.includes('unauthorized')) {
+        return 'Security Alert';
+    }
+    
+    if (lowerMessage.includes('warning') || lowerMessage.includes('warn')) {
+        return 'Warning';
+    }
+    
+    if (lowerMessage.includes('info') || lowerMessage.includes('information') || lowerMessage.includes('completed') || lowerMessage.includes('successful')) {
+        return 'Information';
+    }
+    
+    if (lowerMessage.includes('error') || lowerMessage.includes('fail') || lowerMessage.includes('problem')) {
+        return 'Error Alert';
+    }
+    
+    if (lowerMessage.includes('backup') || lowerMessage.includes('restore')) {
+        return 'Backup Alert';
+    }
+    
+    if (lowerMessage.includes('network') || lowerMessage.includes('connection')) {
+        return 'Network Alert';
+    }
+    
+    if (lowerMessage.includes('database') || lowerMessage.includes('sql')) {
+        return 'Database Alert';
+    }
+    
+    // Default to system alert
+    return ALERT_CONFIG.defaultAlertBody;
+}
+
 // Core alert function based on your snippet
-async function sendAlert(message, url = null, isCritical = false, sourceIP = null) {
+async function sendAlert(message, url = null, isCritical = false, sourceIP = null, alertType = null) {
     stats.totalAlerts++;
     
     if (isCritical) {
@@ -234,9 +284,12 @@ async function sendAlert(message, url = null, isCritical = false, sourceIP = nul
         return { success: false, reason: 'outside_hours', message: 'Outside working hours' };
     }
 
+    // Determine appropriate alert body based on message content or explicit type
+    const alertBody = alertType ? getAlertBody(message, isCritical, alertType) : getAlertBody(message, isCritical);
+
     const params = {
         topic: ALERT_CONFIG.topic,
-        body: 'System Alert',
+        body: alertBody,
         content: message,
         keep: 1
     };
@@ -361,7 +414,7 @@ app.get('/health', (req, res) => {
 
 // Send alert endpoint
 app.post('/alert', async (req, res) => {
-    const { message, url, critical } = req.body;
+    const { message, url, critical, alertType } = req.body;
     const sourceIP = req.ip || req.connection.remoteAddress || 'unknown';
 
     // Validation
@@ -377,12 +430,19 @@ app.post('/alert', async (req, res) => {
         });
     }
 
+    // Validate alertType format if provided (allow any string)
+    if (alertType && (typeof alertType !== 'string' || alertType.trim().length === 0)) {
+        return res.status(400).json({
+            error: 'alertType must be a non-empty string if provided'
+        });
+    }
+
     const isCritical = critical === true || critical === 'true';
 
-    log('info', `📥 Received alert request from ${sourceIP}: ${message} ${isCritical ? '(CRITICAL)' : ''}`);
+    log('info', `📥 Received alert request from ${sourceIP}: ${message} ${isCritical ? '(CRITICAL)' : ''} ${alertType ? `[${alertType}]` : ''}`);
 
     try {
-        const result = await sendAlert(message.trim(), url, isCritical, sourceIP);
+        const result = await sendAlert(message.trim(), url, isCritical, sourceIP, alertType);
         
         res.json({
             success: result.success,
@@ -390,6 +450,7 @@ app.post('/alert', async (req, res) => {
             reason: result.reason || null,
             timestamp: new Date().toISOString(),
             critical: isCritical,
+            alertType: alertType || 'auto-detected',
             workingHours: isWorkingHours(),
             rateLimit: {
                 current: rateLimitWindow.length,
@@ -419,6 +480,12 @@ app.get('/config', (req, res) => {
             max: ALERT_CONFIG.rateLimitMax,
             windowSeconds: ALERT_CONFIG.rateLimitWindow / 1000,
             current: rateLimitWindow.length
+        },
+        defaultAlertBody: ALERT_CONFIG.defaultAlertBody,
+        alertTypeInfo: {
+            dynamic: true,
+            description: "Any custom alert type can be specified. If not provided, auto-detection based on message content will be used.",
+            examples: ["custom", "maintenance", "deployment", "performance", "integration"]
         }
     });
 });
@@ -433,6 +500,43 @@ app.post('/config/disable', (req, res) => {
     ALERT_CONFIG.enabled = false;
     log('info', '🔕 Alerts DISABLED');
     res.json({ success: true, message: 'Alerts disabled', enabled: false });
+});
+
+// Alert types endpoint - now supports dynamic types
+app.get('/alert-types', (req, res) => {
+    res.json({
+        dynamic: true,
+        description: "Alert types are now completely dynamic. You can specify any custom alert type or let the system auto-detect based on message content.",
+        defaultAlertBody: ALERT_CONFIG.defaultAlertBody,
+        autoDetectedTypes: [
+            "Device Alert (keywords: device, battery, round)",
+            "Sync Alert (keywords: sync, synchroniz)",
+            "Health Check (keywords: health, check, monitor)",
+            "Security Alert (keywords: security, breach, unauthorized)",
+            "Warning (keywords: warning, warn)",
+            "Information (keywords: info, information, completed, successful)",
+            "Error Alert (keywords: error, fail, problem)",
+            "Backup Alert (keywords: backup, restore)",
+            "Network Alert (keywords: network, connection)",
+            "Database Alert (keywords: database, sql)",
+            "Critical Alert (when critical: true)"
+        ],
+        customTypeExamples: [
+            "maintenance",
+            "deployment", 
+            "performance",
+            "integration",
+            "user-notification",
+            "api-alert",
+            "scheduled-task",
+            "custom-category"
+        ],
+        usage: {
+            autoDetection: "Send without alertType to auto-detect based on message content",
+            customType: "Send with alertType parameter to specify any custom alert body type",
+            formatting: "Custom types are automatically formatted as 'TypeName Alert' (e.g., 'maintenance' becomes 'Maintenance Alert')"
+        }
+    });
 });
 
 // Statistics endpoint
@@ -534,10 +638,11 @@ app.use((req, res) => {
         error: 'Endpoint not found',
         availableEndpoints: [
             'GET /health - Service health check',
-            'POST /alert - Send alert (body: {message, url?, critical?})',
+            'POST /alert - Send alert (body: {message, url?, critical?, alertType?}) - alertType can be any custom string',
             'GET /config - View configuration',
             'POST /config/enable - Enable alerts',
             'POST /config/disable - Disable alerts',
+            'GET /alert-types - View dynamic alert type information',
             'GET /stats - View statistics',
             'POST /test - Send test alert',
             'POST /reset-rate-limit - Reset rate limiting window',

@@ -28,12 +28,9 @@ SyslogIdentifier=alerts-server
 # Security
 NoNewPrivileges=yes
 PrivateTmp=yes
-ProtectSystem=strict
-ProtectHome=yes
+ProtectSystem=false
+ProtectHome=false
 ReadWritePaths=/home/administrator/alerts-workspace
-ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectControlGroups=yes
 
 # Resource limits
 LimitNOFILE=65536

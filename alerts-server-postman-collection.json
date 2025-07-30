@@ -1,0 +1,778 @@
+{
+	"info": {
+		"_postman_id": "alerts-server-collection",
+		"name": "Alerts Server API",
+		"description": "Comprehensive collection for the centralized alerts server with dynamic alert types, rate limiting, and database logging.\n\nBase URL: http://localhost:3008\n\nFeatures:\n- Dynamic Alert Types: Use any custom alert type or auto-detection\n- Smart Auto-Detection: Intelligent categorization based on message content\n- Rate limiting (5 alerts per 30 seconds)\n- Working hours enforcement (7 AM - 6 PM)\n- Database logging\n- Health monitoring\n- Configuration management\n\nAlert Type Examples:\n- Custom: 'maintenance' → 'Maintenance Alert'\n- Auto-detect: 'Device battery low' → 'Device Alert'\n- Critical override: Always shows 'Critical Alert'",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Get comprehensive server health status including uptime, alerts enabled status, working hours, rate limiting, memory usage, and statistics."
+					},
+					"response": [
+						{
+							"name": "Healthy Server Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/health",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"health"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": \"healthy\",\n  \"service\": \"alerts-server\",\n  \"uptime\": 3661,\n  \"uptimeFormatted\": \"1h 1m\",\n  \"alertsEnabled\": true,\n  \"workingHours\": true,\n  \"currentHour\": 11,\n  \"workingHoursRange\": \"7:00 - 18:00\",\n  \"rateLimit\": {\n    \"current\": 2,\n    \"max\": 5,\n    \"windowSeconds\": 30,\n    \"nextReset\": \"2025-07-30T01:12:00.000Z\"\n  },\n  \"memory\": {\n    \"rss\": \"45MB\",\n    \"heapUsed\": \"12MB\"\n  },\n  \"stats\": {\n    \"startTime\": \"2025-07-30T00:10:00.000Z\",\n    \"totalAlerts\": 15,\n    \"successfulAlerts\": 13,\n    \"failedAlerts\": 2,\n    \"criticalAlerts\": 3,\n    \"alertsDisabled\": 0,\n    \"throttledAlerts\": 0\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats"
+							]
+						},
+						"description": "Get detailed statistics including success rate and alerts per hour."
+					},
+					"response": [
+						{
+							"name": "Statistics Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/stats",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"stats"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"startTime\": \"2025-07-30T00:10:00.000Z\",\n  \"totalAlerts\": 15,\n  \"successfulAlerts\": 13,\n  \"failedAlerts\": 2,\n  \"criticalAlerts\": 3,\n  \"alertsDisabled\": 0,\n  \"throttledAlerts\": 0,\n  \"uptime\": 3661,\n  \"successRate\": \"86.7%\",\n  \"alertsPerHour\": \"14.7\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Alert Management",
+			"item": [
+				{
+					"name": "Send Basic Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"System backup completed successfully\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send a basic alert with auto-detected body type based on message content."
+					}
+				},
+				{
+					"name": "Send Device Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Device battery level is critically low (5%)\",\n  \"critical\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send a device-related alert. The system will auto-detect this as a 'Device Alert' based on keywords."
+					}
+				},
+				{
+					"name": "Send Critical Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Database connection lost - immediate attention required\",\n  \"critical\": true,\n  \"url\": \"https://dashboard.example.com/alerts\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send a critical alert with URL. Critical alerts are sent twice with a delay for reliability."
+					}
+				},
+				{
+					"name": "Send Alert with Custom Type",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Server maintenance scheduled for tonight\",\n  \"alertType\": \"maintenance\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send an alert with a custom alert type. The system will format it as 'Maintenance Alert'."
+					}
+				},
+				{
+					"name": "Send Custom Deployment Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Production deployment completed successfully\",\n  \"url\": \"https://dashboard.example.com/deployments\",\n  \"alertType\": \"deployment\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send a deployment notification with custom alert type 'Deployment Alert'."
+					}
+				},
+				{
+					"name": "Send Performance Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"API response time exceeded threshold (2.5s average)\",\n  \"alertType\": \"performance\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send a performance alert with custom type showing as 'Performance Alert'."
+					}
+				},
+				{
+					"name": "Send Sync Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Device synchronization failed for 3 consecutive attempts\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send a sync-related alert. Auto-detected as 'Sync Alert' based on message content."
+					}
+				},
+				{
+					"name": "Send Health Check Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Health check monitoring detected service degradation\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Send a health monitoring alert. Auto-detected as 'Health Check' based on keywords."
+					}
+				},
+				{
+					"name": "Test Alert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{base_url}}/test",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test"
+							]
+						},
+						"description": "Send a test alert with current timestamp for development and testing purposes."
+					}
+				}
+			]
+		},
+		{
+			"name": "Configuration",
+			"item": [
+				{
+					"name": "Get Configuration",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/config",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config"
+							]
+						},
+						"description": "Get current server configuration including working hours, rate limits, and alert types."
+					},
+					"response": [
+						{
+							"name": "Configuration Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/config",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"config"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"enabled\": true,\n  \"workingHoursStart\": 7,\n  \"workingHoursEnd\": 18,\n  \"topic\": \"IT\",\n  \"retryDelay\": 3000,\n  \"rateLimit\": {\n    \"max\": 5,\n    \"windowSeconds\": 30,\n    \"current\": 2\n  },\n  \"alertTypes\": {\n    \"system\": \"System Alert\",\n    \"device\": \"Device Alert\",\n    \"sync\": \"Sync Alert\",\n    \"health\": \"Health Check\",\n    \"critical\": \"Critical Alert\",\n    \"warning\": \"Warning\",\n    \"info\": \"Information\",\n    \"security\": \"Security Alert\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Enable Alerts",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{base_url}}/config/enable",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"enable"
+							]
+						},
+						"description": "Enable alert sending."
+					}
+				},
+				{
+					"name": "Disable Alerts",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{base_url}}/config/disable",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"disable"
+							]
+						},
+						"description": "Disable alert sending (alerts will be logged but not sent)."
+					}
+				},
+				{
+					"name": "Get Alert Types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/alert-types",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert-types"
+							]
+						},
+						"description": "Get all available alert body types and usage information."
+					},
+					"response": [
+						{
+							"name": "Alert Types Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/alert-types",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"alert-types"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"availableTypes\": [\n    \"system\",\n    \"device\",\n    \"sync\",\n    \"health\",\n    \"critical\",\n    \"warning\",\n    \"info\",\n    \"security\"\n  ],\n  \"alertBodies\": {\n    \"system\": \"System Alert\",\n    \"device\": \"Device Alert\",\n    \"sync\": \"Sync Alert\",\n    \"health\": \"Health Check\",\n    \"critical\": \"Critical Alert\",\n    \"warning\": \"Warning\",\n    \"info\": \"Information\",\n    \"security\": \"Security Alert\"\n  },\n  \"usage\": {\n    \"autoDetection\": \"Send without alertType to auto-detect based on message content\",\n    \"explicitType\": \"Send with alertType parameter to specify exact alert body type\"\n  }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Database & Logging",
+			"item": [
+				{
+					"name": "Get Alert Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/logs?limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"logs"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Number of recent logs to retrieve (default: 50)"
+								}
+							]
+						},
+						"description": "Get recent alert logs from the database, including successful, failed, and throttled alerts."
+					},
+					"response": [
+						{
+							"name": "Logs Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/logs?limit=10",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"logs"
+									],
+									"query": [
+										{
+											"key": "limit",
+											"value": "10"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"count\": 10,\n  \"logs\": [\n    {\n      \"id\": 15,\n      \"timestamp\": \"2025-07-30T01:10:00.000Z\",\n      \"message\": \"Test alert from alerts-server at 7/30/2025, 11:10:00 AM\",\n      \"url\": null,\n      \"critical\": false,\n      \"success\": true,\n      \"reason\": null,\n      \"sourceIP\": \"::1\"\n    },\n    {\n      \"id\": 14,\n      \"timestamp\": \"2025-07-30T01:05:00.000Z\",\n      \"message\": \"Device battery level is critically low (5%)\",\n      \"url\": null,\n      \"critical\": false,\n      \"success\": true,\n      \"reason\": null,\n      \"sourceIP\": \"::1\"\n    }\n  ]\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Rate Limiting",
+			"item": [
+				{
+					"name": "Reset Rate Limit",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{base_url}}/reset-rate-limit",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reset-rate-limit"
+							]
+						},
+						"description": "Reset the rate limiting window to allow immediate alert sending."
+					}
+				}
+			]
+		},
+		{
+			"name": "Error Examples",
+			"item": [
+				{
+					"name": "Invalid Alert Type Format",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Test message\",\n  \"alertType\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Example of sending an alert with an empty alertType to see validation error."
+					},
+					"response": [
+						{
+							"name": "Invalid Alert Type Format Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"message\": \"Test message\",\n  \"alertType\": \"\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/alert",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"alert"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"error\": \"alertType must be a non-empty string if provided\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Missing Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"critical\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alert",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"alert"
+							]
+						},
+						"description": "Example of sending an alert without required message parameter."
+					},
+					"response": [
+						{
+							"name": "Missing Message Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"critical\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/alert",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"alert"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"error\": \"Missing required parameter: message\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Invalid Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/invalid-endpoint",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"invalid-endpoint"
+							]
+						},
+						"description": "Example of accessing a non-existent endpoint to see 404 response with available endpoints."
+					},
+					"response": [
+						{
+							"name": "404 Not Found",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/invalid-endpoint",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"invalid-endpoint"
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"error\": \"Endpoint not found\",\n  \"availableEndpoints\": [\n    \"GET /health - Service health check\",\n    \"POST /alert - Send alert (body: {message, url?, critical?, alertType?})\",\n    \"GET /config - View configuration\",\n    \"POST /config/enable - Enable alerts\",\n    \"POST /config/disable - Disable alerts\",\n    \"GET /stats - View statistics\",\n    \"POST /test - Send test alert\",\n    \"POST /reset-rate-limit - Reset rate limiting window\",\n    \"GET /logs?limit=50 - View recent alert logs\"\n  ]\n}"
+						}
+					]
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3008",
+			"description": "Base URL for the alerts server"
+		}
+	]
+}
